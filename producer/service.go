@@ -63,6 +63,21 @@ func GetById(w http.ResponseWriter, r *http.Request) {
 				Key:   sarama.StringEncoder(j.UniqueId),
 				Value: sarama.StringEncoder(prettyJSON),
 			}
+
+			// go routine that will handle success and failure messages while we allow handler to queue messages to send
+			go func(producer sarama.AsyncProducer) {
+				for {
+					// process response results and errors from producer asynchronously
+					select {
+					case err := <-producer.Errors():
+						log.Println("Error: Failed to produce message", err)
+					case success := <-producer.Successes():
+						log.Println("Success! Message sent", success)
+					}
+				}
+			}(kafka.AsyncProducer)
+
+			break
 		}
 	}
 }
